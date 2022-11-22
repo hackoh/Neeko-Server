@@ -31,65 +31,76 @@ export class ReplayManager {
     }
     public async getGameMetaData(region: Regions, gameId: string, ip: string): Promise<string | Object> {
         this.logInfo(`Client ${ip} queried metadata of game ${gameId} (${region})`);
-        await this.testGameExists(gameId);
+        await this.testGameExists(gameId, region);
 
-        if (!await fileExists(`${config.paths.games}/${gameId}/metadata.json`))
+        if (!await fileExists(`${config.paths.games}/${region}/${gameId}/metadata.json`))
             throw new Error('Game metadata does not exist');
 
         this._clientsLastChunk[gameId + ip] = 0;
-        return await fs.readFile(`${config.paths.games}/${gameId}/metadata.json`, 'utf8');
+        return await fs.readFile(`${config.paths.games}/${region}/${gameId}/metadata.json`, 'utf8');
     }
 
     public async getGameDataChunk(region: any, gameId: any, chunkId: any, ip: string): Promise<string | Buffer> {
         this.logInfo(`Client ${ip} queried chunk ${chunkId} of game ${gameId} (${region})`);
-        await this.testGameExists(gameId);
+        await this.testGameExists(gameId, region);
 
-        const path = `${config.paths.games}/${gameId}/chunks/${chunkId}.bin`;
-        if (!await fileExists(path))
+        const path = `${config.paths.games}/${region}/${gameId}/chunks/${chunkId}.bin`;
+        if (!await fileExists(path)) {
+            this.logInfo(`Chunk does not exist`);
             throw new Error('Chunk does not exist');
+        }
         return await fs.readFile(path);
     }
 
     public async getKeyFrame(region: any, gameId: any, keyFrameId: any, ip: string): Promise<string | Buffer> {
         this.logInfo(`Client ${ip} queried keyFrame ${keyFrameId} of game ${gameId} (${region})`);
-        await this.testGameExists(gameId);
+        await this.testGameExists(gameId, region);
 
-        const path = `${config.paths.games}/${gameId}/keyframes/${keyFrameId}.bin`;
-        if (!await fileExists(path))
+        const path = `${config.paths.games}/${region}/${gameId}/keyframes/${keyFrameId}.bin`;
+        if (!await fileExists(path)) {
+            this.logInfo(`KeyFrame does not exist`);
             throw new Error('KeyFrame does not exist');
+        }
 
         return await fs.readFile(path);
     }
 
     public async endOfGameStats(region: any, gameId: any, ip: string): Promise<string | Buffer> {
         this.logInfo(`Client ${ip} queried endOfGameStats of game ${gameId} (${region})`);
-        await this.testGameExists(gameId);
+        await this.testGameExists(gameId, region);
 
-        const path = `${config.paths.games}/${gameId}/endOfGameStats.json`;
-        if (!await fileExists(path))
+        const path = `${config.paths.games}/${region}/${gameId}/endOfGameStats.json`;
+        if (!await fileExists(path)) {
+            this.logInfo(`End of game stats do not exist`);
             throw new Error('End of game stats do not exist');
+        }
         return await fs.readFile(path);
     }
 
     // Note: Chunk 1 is always called independently by the client, thus it is not handled here.
     public async getLastChunkInfo(region: any, gameId: any, ip: string): Promise<Object> {
         this.logInfo(`Client ${ip} queried last chunk info of game ${gameId} (${region}). Client's current chunk: ${this._clientsLastChunk[gameId + ip]}`);
-        await this.testGameExists(gameId);
+        await this.testGameExists(gameId, region);
 
         if (this._clientsLastChunk[gameId + ip] === undefined) {
+            this.logInfo(`You must call getGameMetaData first.`);
             return "You must call getGameMetaData first.";
         }
 
         //Increase chunk counter to simulate game progression
         let currentChunkId = ++this._clientsLastChunk[gameId + ip];
 
-        const metadataPath = `${config.paths.games}/${gameId}/metadata.json`;
-        if (!await fileExists(metadataPath))
+        const metadataPath = `${config.paths.games}/${region}/${gameId}/metadata.json`;
+        if (!await fileExists(metadataPath)) {
+            this.logInfo(`Game metadata does not exist.`);
             throw new Error('Game metadata does not exist');
-        const metadata = JSON.parse(await fs.readFile(`${config.paths.games}/${gameId}/metadata.json`, 'utf-8')) as IMetaData;
+        }
+        const metadata = JSON.parse(await fs.readFile(`${config.paths.games}/${region}/${gameId}/metadata.json`, 'utf-8')) as IMetaData;
 
-        if (metadata.pendingAvailableChunkInfo.length === 0 || metadata.pendingAvailableKeyFrameInfo.length === 0)
+        if (metadata.pendingAvailableChunkInfo.length === 0 || metadata.pendingAvailableKeyFrameInfo.length === 0) {
+            this.logInfo(`No chunks or keyFrames available.`);
             throw new Error("No chunks or keyFrames available");
+        }
 
         const firstChunkWithKeyFrame = metadata.pendingAvailableKeyFrameInfo[0].nextChunkId;
         let firstChunkId = firstChunkWithKeyFrame;
@@ -119,6 +130,7 @@ export class ReplayManager {
         if (firstChunkId !== metadata.startGameChunkId && currentChunkId - 1 == metadata.startGameChunkId) {
             currentChunkId = firstChunkId;
             this._clientsLastChunk[gameId + ip] = currentChunkId;
+            console.log('we don\'t have the chunks between 1 and the first chunk with keyFrame = '+currentChunkId)
         }
 
         // In-game chunks
@@ -134,6 +146,7 @@ export class ReplayManager {
             lastChunkInfo.chunkId = currentChunkId;
             lastChunkInfo.nextChunkId = metadata.lastChunkId;
             lastChunkInfo.nextAvailableChunk = currentChunkId === firstChunkId + 6 ? 30000 : 100;
+            console.log('In-game chunks')
         }
 
         // No more chunks, game is finished.
@@ -141,7 +154,9 @@ export class ReplayManager {
             lastChunkInfo.nextAvailableChunk = 90000;
             lastChunkInfo.endGameChunkId = metadata.endGameChunkId;
             this.logInfo(`Client ${ip} has queried the last chunk info of game ${gameId} (${region})`);
+            console.log('No more chunks')
         }
+        // console.log(lastChunkInfo)
         return lastChunkInfo;
     }
 
@@ -161,8 +176,8 @@ export class ReplayManager {
         throw new Error("keyframe not found for chunkId: " + chunkId);
     }
 
-    private async testGameExists(gameId: string): Promise<void> {
-        if (!await fileExists(`${config.paths.games}/${gameId}`))
+    private async testGameExists(gameId: string, region: any): Promise<void> {
+        if (!await fileExists(`${config.paths.games}/${region}/${gameId}`))
             throw new Error('Game does not exist');
     }
 

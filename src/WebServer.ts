@@ -6,6 +6,7 @@ import getKeyFrame from "./routes/getKeyFrame";
 import endOfGameStats from "./routes/endOfGameStats";
 import getLastChunkInfo from "./routes/getLastChunkInfo";
 import spectateSummoner from "./routes/spectateSummoner";
+import spectateGame from "./routes/spectateGame";
 import statistics from "./routes/statistics";
 import getWindowsGameStart from "./routes/getWindowsGameStart";
 
@@ -18,6 +19,15 @@ export class WebServer {
     const fastify = Fastify({
       logger: config.server.logger
     });
+
+    // fastify.setNotFoundHandler((request, reply) => {
+    //   reply.code(404).type('text/html').send('Not Found')
+    //   // console.log(request.url)
+    // })
+    // fastify.addHook('onRequest', (request, reply, done) => {
+    //   // Some code
+    //   console.log(request.url)
+    // })
 
     fastify.decorate('spectator_servers', config.spectator_servers);
     fastify.decorate('secrets', config.server.secrets);
@@ -33,6 +43,7 @@ export class WebServer {
     fastify.register(endOfGameStats, { prefix: '/observer-mode/rest/consumer' });
     fastify.register(getLastChunkInfo, { prefix: '/observer-mode/rest/consumer' });
     fastify.register(spectateSummoner, { prefix: '/admin/' });
+    fastify.register(spectateGame, { prefix: '/admin/' });
     fastify.register(statistics, { prefix: '/admin/' });
     fastify.register(getWindowsGameStart, { prefix: '/spectate/' });
 

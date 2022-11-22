@@ -13,25 +13,21 @@ import { getGameById } from "./RiotAPIHandler";
 import { IStatisticsSpectator } from "./interfaces/IStatistics";
 import { ICurrentGameInfo } from "./interfaces/ICurrentGameInfo";
 
-export class Spectator {
+export class GameSpectator {
     readonly BASE: string = "/observer-mode/rest/consumer";
 
-    readonly game: ICurrentGameInfo;
+    readonly game: CurrentGameInfoDTO;
     readonly region: Regions;
-    readonly targetSummoner: string;
+    // readonly targetSummoner: string;
     private alive: boolean = true;
     gameMetaData: IMetaData;
     lastChunkInfo: ILastChunkInfo;
     lastKeyFrameInfo;
 
-    constructor(game: CurrentGameInfoDTO, region: Regions, targetSummoner: string) {
-        this.game = game;
+    constructor(gameId: number, region: Regions) {
+        this.game = new CurrentGameInfoDTO();
+        this.game.gameId = gameId;
         this.region = region;
-        this.targetSummoner = targetSummoner;
-        this.game.custom = {
-            date: getDate(),
-            targetSummonerName: targetSummoner,
-        };
     }
 
     public getCurrentSpectatorMinutes(): number {
@@ -48,12 +44,12 @@ export class Spectator {
         return {
             gameId: this.game.gameId,
             region: this.region,
-            targetSummonerName: this.game.custom.targetSummonerName,
-            date: this.game.custom.date,
+            targetSummonerName: null,
+            date: null,
             liveGameMinutes: this.getCurrentSpectatorMinutes(),
             interestScore: this.gameMetaData.interestScore,
-            gameMode: this.game.gameMode,
-            gameType: this.game.gameType,
+            gameMode: null,
+            gameType: null,
         }
     }
 
@@ -183,7 +179,7 @@ export class Spectator {
 
 
     private async getGameDataChunk(chunkId: number) {
-        const filePath = `${config.paths.games}/${this.game.platformId}/${this.game.gameId}/chunks/${chunkId}.bin`;
+        const filePath = `${config.paths.games}/${this.region}/${this.game.gameId}/chunks/${chunkId}.bin`;
         this.logInfo(`Downloading chunk ${chunkId} to ${filePath}`);
 
         if (await fileExists(filePath)) {
@@ -203,7 +199,7 @@ export class Spectator {
                 duration: 30000,
                 receivedTime: getDate()
             });
-            await response.data.pipe(fs.createWriteStream(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/chunks/${chunkId}.bin`));
+            await response.data.pipe(fs.createWriteStream(`${config.paths.games}/${this.region}/${this.game.gameId}/chunks/${chunkId}.bin`));
 
         } catch (error) {
             // This is not really an error since we iterate through all the chunks knwowing that
@@ -213,7 +209,7 @@ export class Spectator {
     }
 
     private async getKeyFrame(keyFrameId: number) {
-        const filePath = `${config.paths.games}/${this.game.platformId}/${this.game.gameId}/keyframes/${keyFrameId}.bin`;
+        const filePath = `${config.paths.games}/${this.region}/${this.game.gameId}/keyframes/${keyFrameId}.bin`;
         this.logInfo(`Downloading keyframe ${keyFrameId} to ${filePath}`);
 
         if (await fileExists(filePath)) {
@@ -232,7 +228,7 @@ export class Spectator {
                 receivedTime: getDate(),
                 nextChunkId: keyFrameId * 2
             });
-            await response.data.pipe(fs.createWriteStream(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/keyframes/${keyFrameId}.bin`));
+            await response.data.pipe(fs.createWriteStream(`${config.paths.games}/${this.region}/${this.game.gameId}/keyframes/${keyFrameId}.bin`));
 
         } catch (error) {
             // This is not really an error since we iterate through all the keyFrames knwowing that
@@ -245,24 +241,24 @@ export class Spectator {
         if (!await fileExists(config.paths.games))
             await fsp.mkdir(config.paths.games);
 
-        if (!await fileExists(`${config.paths.games}/${this.game.platformId}`))
-            await fsp.mkdir(`${config.paths.games}/${this.game.platformId}`);
+        if (!await fileExists(`${config.paths.games}/${this.region}`))
+            await fsp.mkdir(`${config.paths.games}/${this.region}`);
 
-        if (!await fileExists(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}`))
-            await fsp.mkdir(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}`);
+        if (!await fileExists(`${config.paths.games}/${this.region}/${this.game.gameId}`))
+            await fsp.mkdir(`${config.paths.games}/${this.region}/${this.game.gameId}`);
 
-        if (!await fileExists(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/chunks`))
-            await fsp.mkdir(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/chunks`);
+        if (!await fileExists(`${config.paths.games}/${this.region}/${this.game.gameId}/chunks`))
+            await fsp.mkdir(`${config.paths.games}/${this.region}/${this.game.gameId}/chunks`);
 
-        if (!await fileExists(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/keyframes`))
-            await fsp.mkdir(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/keyframes`);
+        if (!await fileExists(`${config.paths.games}/${this.region}/${this.game.gameId}/keyframes`))
+            await fsp.mkdir(`${config.paths.games}/${this.region}/${this.game.gameId}/keyframes`);
 
-        await fsp.writeFile(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/game.json`, JSON.stringify(this.game, null, 4));
+        await fsp.writeFile(`${config.paths.games}/${this.region}/${this.game.gameId}/game.json`, JSON.stringify(this.game, null, 4));
         await this.saveGameMetaData();
     }
 
     private async saveGameMetaData() {
-        await fsp.writeFile(`${config.paths.games}/${this.game.platformId}/${this.game.gameId}/metadata.json`, JSON.stringify(this.gameMetaData, null, 4));
+        await fsp.writeFile(`${config.paths.games}/${this.region}/${this.game.gameId}/metadata.json`, JSON.stringify(this.gameMetaData, null, 4));
     }
 
     private logInfo(message: string) {

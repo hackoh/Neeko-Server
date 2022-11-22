@@ -18,6 +18,7 @@ export default async function routes(fastify) {
             return ReplayManager.getInstance().getLastChunkInfo(region, gameId, request.ip);
         } catch {
             reply.code(404).type('text/html').send('Unexpected error, look at the logs');
+            console.log('Unexpected error, look at the logs')
         }
     });
 }

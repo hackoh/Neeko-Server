@@ -1,9 +1,10 @@
 import { SpectatorManager } from "../SpectatorManager";
 
 export default async function routes(fastify) {
-    fastify.get('/windows/:gameId', async (request, reply) => {
+    fastify.get('/windows/:region/:gameId', async (request, reply) => {
         const gameId = request.params.gameId;
-        if (!gameId) {
+        const region = request.params.region;
+        if (!gameId || !region) {
             reply.code(400).send("Missing parameters");
             return;
         }
@@ -16,9 +17,9 @@ export default async function routes(fastify) {
                 port = hostname.split(':')[1];
             }
 
-            const res = await SpectatorManager.getInstance().getWindowsGameStart(gameId, address, port);
+            const res = await SpectatorManager.getInstance().getWindowsGameStart(gameId, address, port, region);
 
-            reply.header('Content-disposition', `attachment; filename=start_${gameId}.bat`);
+            reply.header('Content-disposition', `attachment; filename=start_${region}_${gameId}.bat`);
             reply.send(res);
         } catch {
             reply.code(404).send(`Cannot find this game on this spectator server.`);

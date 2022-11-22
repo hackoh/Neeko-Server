@@ -5,6 +5,7 @@ import { fileExists } from "./utils/Utils";
 import { ApiResponseDTO, CurrentGameInfoDTO, MatchV5DTOs, SpectatorNotAvailableDTO } from "twisted/dist/models-dto";
 import { activeGame } from "./RiotAPIHandler";
 import { Spectator } from "./Spectator";
+import { GameSpectator } from "./GameSpectator";
 import { ANSI } from "./utils/ANSI";
 import { Logger } from "./utils/Logger";
 import { IStatistics, IStatisticsGame } from "./interfaces/IStatistics";
@@ -16,6 +17,7 @@ export class SpectatorManager {
 
     private static _instance: SpectatorManager = new SpectatorManager();
     private spectators: Spectator[] = [];
+    private gameSpectators: GameSpectator[] = [];
     // The private constructor is not empty since when transpiled to js, it is not private anymore
     private constructor() {
         if (SpectatorManager._instance) {
@@ -54,6 +56,25 @@ export class SpectatorManager {
         }
     }
 
+    public async spectateByGameId(gameId: number, region: Regions): Promise<boolean> {
+        try {
+            if (this.gameSpectators.find(s => s.game.gameId === gameId)) {
+                this.logInfo(`Game ${gameId} is already being recorded!`);
+                return true;
+            }
+
+            const spec: GameSpectator = new GameSpectator(gameId, region);
+
+            this.logInfo(`Started spectating game ${gameId} on server ${region}`);
+            spec.startSpectating();
+            this.gameSpectators.push(spec);
+            return true;
+        } catch (err) {
+            this.logInfo(`Cannot spectate ${gameId} since they are not active`);
+            return false;
+        }
+    }
+
     public async getStatistics(): Promise<IStatistics> {
         this.logInfo('Querying statistics');
         this.spectators = this.spectators.filter(s => s.isAlive());
@@ -62,10 +83,10 @@ export class SpectatorManager {
         return { spectators: spectatorStats, games: gamesStats };
     }
 
-    public async getWindowsGameStart(gameId: string, address, port) {
-        if (await fileExists(`${config.paths.games}/${gameId}/game.json`)) {
+    public async getWindowsGameStart(gameId: string, address, port, _region: string) {
+        if (await fileExists(`${config.paths.games}/${_region}/${gameId}/game.json`)) {
             this.logInfo(`Getting Windows game start file for game ${gameId}`);
-            const game: CurrentGameInfoDTO = JSON.parse(await fsp.readFile(`${config.paths.games}/${gameId}/game.json`, 'utf8'));
+            const game: CurrentGameInfoDTO = JSON.parse(await fsp.readFile(`${config.paths.games}/${_region}/${gameId}/game.json`, 'utf8'));
             const encryptionKey = game.observers.encryptionKey;
             const region = game.platformId;
             const file = (await fsp.readFile(`ressources/start.bat`, 'utf8'))
