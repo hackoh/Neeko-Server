@@ -101,10 +101,20 @@ export class ReplayManager {
             this.logInfo(`No chunks or keyFrames available.`);
             throw new Error("No chunks or keyFrames available");
         }
+        let safeChunkId = null
+        let count = 0
+        const max = metadata.pendingAvailableChunkInfo[metadata.pendingAvailableChunkInfo.length - 1].chunkId
+        for (let j = metadata.pendingAvailableChunkInfo.length - 1; j >= 0; j--) {
+            if (metadata.pendingAvailableChunkInfo[j].chunkId == (max - count++)) {
+                safeChunkId = metadata.pendingAvailableChunkInfo[j].chunkId
+            } else {
+                break;
+            }
+        }
 
         let i = 0;
         let firstChunkWithKeyFrame = metadata.pendingAvailableKeyFrameInfo[i].nextChunkId;
-        while (!metadata.pendingAvailableChunkInfo.find(v => v.chunkId == firstChunkWithKeyFrame)) {
+        while (!metadata.pendingAvailableChunkInfo.find(v => v.chunkId == firstChunkWithKeyFrame) || safeChunkId > firstChunkWithKeyFrame) {
             i++;
             if (!metadata.pendingAvailableKeyFrameInfo[i]) {
                 throw new Error("No chunks or keyFrames available");
@@ -113,11 +123,12 @@ export class ReplayManager {
         }
         // const firstChunkWithKeyFrame = firstChunkWithKeyFrame;
         let firstChunkId = firstChunkWithKeyFrame;
+        this.logInfo(`Detected firstChunkId = ${firstChunkId}`);
 
         // Quoting Divi from 7 years ago: "A bug appears when endStartupChunkId = 3 and startGameChunkId = 5, the game won't load"
         // Never had that an endStartupChunkId at 3 but leaving it for safety
         if (metadata.endStartupChunkId + 2 === firstChunkId) {
-            firstChunkId = metadata.startGameChunkId + 2;
+            // firstChunkId = metadata.startGameChunkId + 2;
         }
 
 
@@ -165,7 +176,7 @@ export class ReplayManager {
             this.logInfo(`Client ${ip} has queried the last chunk info of game ${gameId} (${region})`);
             console.log('No more chunks')
         }
-        console.log(lastChunkInfo)
+        // console.log(lastChunkInfo)
         return lastChunkInfo;
     }
 
