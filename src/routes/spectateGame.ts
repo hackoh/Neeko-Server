@@ -22,7 +22,8 @@ export default async function routes(fastify) {
         if(await SpectatorManager.getInstance().spectateByGameId(gameId, region)){
             reply.code(200).send(`Spectating ${gameId}.`);
         }else{
-            reply.code(200).send(`Summoner ${gameId} not in game or not found.`);
+            reply.code(404).send(`The game ${gameId} not found.`);
         }
+
     });
 }

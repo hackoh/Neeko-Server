@@ -23,6 +23,7 @@ export class GameSpectator {
     gameMetaData: IMetaData;
     lastChunkInfo: ILastChunkInfo;
     lastKeyFrameInfo;
+    private failedChunkId: any;
 
     constructor(gameId: number, region: Regions) {
         this.game = new CurrentGameInfoDTO();
@@ -56,6 +57,12 @@ export class GameSpectator {
     public async startSpectating() {
         this.logInfo(`Launching spectator client instance`);
         this.gameMetaData = await this.getGameMetaData();
+        if (!this.gameMetaData) {
+            return false;
+        }
+        if (this.gameMetaData.gameEnded) {
+            return false;   
+        }
         this.gameMetaData.pendingAvailableChunkInfo = [];
         this.gameMetaData.pendingAvailableKeyFrameInfo = [];
         await this.createFileTree();
@@ -63,8 +70,10 @@ export class GameSpectator {
         await this.getLastKeyFrameInfo();
         this.logInfo(`Game has started since approximately ${this.getCurrentSpectatorMinutes()} minutes.`);
         await this.downloadAvailableChunksAndKeyframes();
+        // this.downloadAvailableChunksAndKeyframes();
 
         this.waitNextChunk();
+        return true;
     }
 
     private async endGame() {
@@ -72,6 +81,7 @@ export class GameSpectator {
         this.gameMetaData.endGameChunkId = this.gameMetaData.lastChunkId;
         this.gameMetaData.endGameKeyFrameId = this.gameMetaData.pendingAvailableKeyFrameInfo.at(-1).keyFrameId;
         this.gameMetaData.gameEnded = true;
+        this.gameMetaData.startGameChunkId = this.failedChunkId ? this.failedChunkId + 1 : this.gameMetaData.startGameChunkId;
         this.saveGameMetaData();
         this.saveEndOfGameStats();
         if (config.spectator.get_riot_match_details) {
@@ -204,6 +214,8 @@ export class GameSpectator {
         } catch (error) {
             // This is not really an error since we iterate through all the chunks knwowing that
             // if we start spectating midgame we will not be able to get past chunks.
+            if (this.failedChunkId < chunkId)
+                this.failedChunkId = chunkId;
             this.logError(`Chunk no longer/not yet available: ${error}`);
         }
     }

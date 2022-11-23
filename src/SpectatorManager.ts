@@ -66,7 +66,10 @@ export class SpectatorManager {
             const spec: GameSpectator = new GameSpectator(gameId, region);
 
             this.logInfo(`Started spectating game ${gameId} on server ${region}`);
-            spec.startSpectating();
+            if ( ! await spec.startSpectating()) {
+                this.logInfo(`Cannot spectate ${gameId} since they are not active`);
+                return false;
+            }
             this.gameSpectators.push(spec);
             return true;
         } catch (err) {

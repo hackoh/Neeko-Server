@@ -102,7 +102,16 @@ export class ReplayManager {
             throw new Error("No chunks or keyFrames available");
         }
 
-        const firstChunkWithKeyFrame = metadata.pendingAvailableKeyFrameInfo[0].nextChunkId;
+        let i = 0;
+        let firstChunkWithKeyFrame = metadata.pendingAvailableKeyFrameInfo[i].nextChunkId;
+        while (!metadata.pendingAvailableChunkInfo.find(v => v.chunkId == firstChunkWithKeyFrame)) {
+            i++;
+            if (!metadata.pendingAvailableKeyFrameInfo[i]) {
+                throw new Error("No chunks or keyFrames available");
+            }
+            firstChunkWithKeyFrame = metadata.pendingAvailableKeyFrameInfo[i].nextChunkId;
+        }
+        // const firstChunkWithKeyFrame = firstChunkWithKeyFrame;
         let firstChunkId = firstChunkWithKeyFrame;
 
         // Quoting Divi from 7 years ago: "A bug appears when endStartupChunkId = 3 and startGameChunkId = 5, the game won't load"
@@ -156,7 +165,7 @@ export class ReplayManager {
             this.logInfo(`Client ${ip} has queried the last chunk info of game ${gameId} (${region})`);
             console.log('No more chunks')
         }
-        // console.log(lastChunkInfo)
+        console.log(lastChunkInfo)
         return lastChunkInfo;
     }
 
