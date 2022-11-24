@@ -57,12 +57,6 @@ export class GameSpectator {
     public async startSpectating() {
         this.logInfo(`Launching spectator client instance`);
         this.gameMetaData = await this.getGameMetaData();
-        if (!this.gameMetaData) {
-            return false;
-        }
-        if (this.gameMetaData.gameEnded) {
-            return false;   
-        }
         this.gameMetaData.pendingAvailableChunkInfo = [];
         this.gameMetaData.pendingAvailableKeyFrameInfo = [];
         await this.createFileTree();
@@ -123,7 +117,7 @@ export class GameSpectator {
         }, this.lastChunkInfo.nextAvailableChunk + 1000);
     }
 
-    private async getGameMetaData(): Promise<IMetaData> {
+    public async getGameMetaData(): Promise<IMetaData> {
         const path = `http://${config.spectator_servers[this.region] + this.BASE}/getGameMetaData/${this.region}/${this.game.gameId}/0/token`;
 
         this.logInfo(path);
